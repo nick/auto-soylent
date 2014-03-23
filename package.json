@@ -1,0 +1,24 @@
+{
+    "name": "auto-soylent",
+    "version": "0.0.1",
+    "author": "Nick Poulden <nick@domine.co.uk>",
+    "description": "Automatic Soylent recipe generator",
+    "keywords": "soylent",
+    "homepage": "http://diy.soylent.me",
+    "repository": {
+        "type": "git",
+        "url": "http://github.com/nick/auto-soylent.git"
+    },
+    "licence": "MIT",
+    "scripts": {
+        "start": "node app"
+    },
+    "engines": {
+        "node": "0.10.x"
+    },
+    "dependencies": {
+        "superagent": "",
+        "colors": "",
+        "cli-table": ""
+    }
+}
