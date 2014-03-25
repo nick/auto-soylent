@@ -18,6 +18,16 @@ var ingredientLength,
     lowWeight,
     highWeight;   // How to weight penalties for going over or under a requirement
 
+var nutrients = [
+    'biotin', 'calcium', 'calories', 'carbs', 'chloride', 'cholesterol', 'choline', 'chromium', 'copper', 'fat',
+    'fiber', 'folate', 'iodine', 'iron', 'maganese', 'magnesium', 'molybdenum', 'niacin', 'omega_3', 'omega_6',
+    'panthothenic', 'phosphorus', 'potassium', 'protein', 'riboflavin', 'selinium', 'sodium', 'sulfur', 'thiamin',
+    'vitamin_a', 'vitamin_b12', 'vitamin_b6', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_k', 'zinc'
+];
+
+// These nutrients are considered 'more important'
+var macroNutrients = ["calories", "protein", "carbs", "fat"];
+
 /**
  * Fitness function that is being optimized
  *
@@ -140,7 +150,7 @@ function generateRecipe(ingredients, nutrientTargets) {
         }
 
         // Weight macro nutrients values higher and make sure we penalize for going over (ad hoc common sense rule)
-        if (targetName[t] == "calories" || targetName[t] == "protein" || targetName[t] == "carbs" || targetName[t] == "fat") {
+        if (macroNutrients.indexOf(targetName[t]) >= 0) {
             lowWeight[t] = 5;
             highWeight[t] = 5;
             maxPerMin[t] = 1;
@@ -176,7 +186,7 @@ function generateRecipe(ingredients, nutrientTargets) {
         x[i] = 1; // Initialize with one of everything
 
         // Cost per serving is cost per container * servings per container
-        cost[i] = ingredients[i].item_cost*ingredients[i].serving / ingredients[i].container_size;
+        cost[i] = ingredients[i].item_cost * ingredients[i].serving / ingredients[i].container_size;
     }
 
     // Projected Gradient descent with halving step size, accepting largest step with improvement.
@@ -226,20 +236,12 @@ function generateRecipe(ingredients, nutrientTargets) {
         }
     }
 
-    var g = gradient(x);
-    // console.log("Final Fitness Gradient:");
-    // for (var k = 0; k < g.length; k++) {
-    //     console.log(g[k]);
-    // }
-
-    // console.log("Servings of each ingredient:");
-    var price = 0;
-    for (var k = 0; k < g.length; k++) {
-        // console.log(x[k].toFixed(4));
-        price += x[k] * cost[k];
+    var pricePerDay = 0;
+    for (var k = 0; k < x.length; k++) {
+        pricePerDay += x[k] * cost[k];
     }
 
-    console.log("Price per day: $" + price.toFixed(2));
+    console.log("Price per day: $" + pricePerDay.toFixed(2));
 
     // Map number of servings into raw quantities because that's what this function is supposed to return
     for (var i = 0; i < ingredients.length; i++) {
@@ -281,7 +283,7 @@ request.get(recipeUrl + "/json?nutrientProfile=51e4e6ca7789bc0200000007", functi
 
     var ingredients     = response.body.ingredients,
         nutrientTargets = response.body.nutrientTargets,
-        i;
+        i, j, nutrient;
 
     // Here's where the magic happens...
     var ingredientQuantities = generateRecipe(ingredients, nutrientTargets);
@@ -303,14 +305,6 @@ request.get(recipeUrl + "/json?nutrientProfile=51e4e6ca7789bc0200000007", functi
     console.log(ingredientsTable.toString());
 
 
-    // Ignore the following nutrient properties
-    var nutrientWhitelist = [
-        'biotin', 'calcium', 'calories', 'carbs', 'chloride', 'cholesterol', 'choline', 'chromium', 'copper', 'fat',
-        'fiber', 'folate', 'iodine', 'iron', 'maganese', 'magnesium', 'molybdenum', 'niacin', 'omega_3', 'omega_6',
-        'panthothenic', 'phosphorus', 'potassium', 'protein', 'riboflavin', 'selinium', 'sodium', 'sulfur', 'thiamin',
-        'vitamin_a', 'vitamin_b12', 'vitamin_b6', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_k', 'zinc'
-    ];
-
     // Output the nutrients.
     var nutrientsTable = new Table({
         style: { compact: true },
@@ -318,8 +312,8 @@ request.get(recipeUrl + "/json?nutrientProfile=51e4e6ca7789bc0200000007", functi
     });
 
     // Loops over each nutrient in the target list
-    for (var nutrient in nutrientTargets) {
-        if (nutrientWhitelist.indexOf(nutrient) < 0) continue; // Skip over non-nutrient properties
+    for (nutrient in nutrientTargets) {
+        if (nutrients.indexOf(nutrient) < 0) continue; // Skip over non-nutrient properties
 
         // Add up the amount of the current nutrient in each of the ingredients.
         var nutrientInIngredients = 0;
@@ -331,9 +325,15 @@ request.get(recipeUrl + "/json?nutrientProfile=51e4e6ca7789bc0200000007", functi
 
         // Format percentages nicely. Cyan: too little. Green: just right. Red: too much
         var pct = (nutrientInIngredients / nutrientTargets[nutrient] * 100);
-        if (pct < 100) pct = pct.toFixed(0).cyan.bold;
-        else if (nutrientTargets[nutrient + '_max'] > 0 && nutrientInIngredients > nutrientTargets[nutrient + '_max']) pct = pct.toFixed(0).red.bold.inverse;
-        else pct = pct.toFixed(0).green
+        if (pct < 99) {
+            pct = pct.toFixed(0).cyan.bold;
+        }
+        else if (nutrientTargets[nutrient + '_max'] > 0 && nutrientInIngredients > nutrientTargets[nutrient + '_max']) {
+            pct = pct.toFixed(0).red.bold.inverse;
+        }
+        else {
+            pct = pct.toFixed(0).green;
+        }
 
         nutrientsTable.push([
             nutrient || '',                           // Nutrient Name
