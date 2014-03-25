@@ -125,9 +125,10 @@ function generateRecipe(ingredients, nutrientTargets) {
     // Fetch the target values ignoring the "max" values and any nonnumerical variables
     for (var key in nutrientTargets) {
         var name = key,
+            nutrient = name.replace(/_max$/, '')
             value = nutrientTargets[key];
 
-        if (name != "name" && name.substring(name.length - 4, name.length) != "_max" && value > 0) {
+        if (nutrients.indexOf(nutrient) > -1 && name.substring(name.length - 4, name.length) != "_max" && value > 0) {
             targetName.push(name);
             targetAmount.push(value);
         }
@@ -318,7 +319,7 @@ request.get(recipeUrl + "/json?nutrientProfile=51e4e6ca7789bc0200000007", functi
         // Add up the amount of the current nutrient in each of the ingredients.
         var nutrientInIngredients = 0;
         for (j=0; j< ingredients.length; j++) {
-            if (typeof ingredients[j][nutrient] == 'number') {
+            if (typeof ingredients[j][nutrient] == 'number' && ingredientQuantities[j] > 0) {
                 nutrientInIngredients += ingredients[j][nutrient] * ingredientQuantities[j] / ingredients[j].serving;
             }
         }
