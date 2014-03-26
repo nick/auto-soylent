@@ -9,6 +9,16 @@
 // This can be replaced with any of the recipes on http://diy.soylent.me
 var recipeUrl = "http://diy.soylent.me/recipes/people-chow-301-tortilla-perfection";
 
+// Calorie goal
+var calories = 2200;
+
+// Ratio of carbs / protein / fat. Should add to 100
+var macros = {
+    carbs: 40,
+    protein: 30,
+    fat: 30
+};
+
 var ingredientLength,
     targetLength, // Length of ingredient and target array (also dimensions of m)
     M,            // Matrix mapping ingredient amounts to chemical amounts (values are fraction per serving of target value)
@@ -19,9 +29,9 @@ var ingredientLength,
     highWeight;   // How to weight penalties for going over or under a requirement
 
 var nutrients = [
-    'biotin', 'calcium', 'calories', 'carbs', 'chloride', 'cholesterol', 'choline', 'chromium', 'copper', 'fat',
+    'calories', 'carbs', 'protein', 'fat', 'biotin', 'calcium', 'chloride', 'cholesterol', 'choline', 'chromium', 'copper',
     'fiber', 'folate', 'iodine', 'iron', 'maganese', 'magnesium', 'molybdenum', 'niacin', 'omega_3', 'omega_6',
-    'panthothenic', 'phosphorus', 'potassium', 'protein', 'riboflavin', 'selinium', 'sodium', 'sulfur', 'thiamin',
+    'panthothenic', 'phosphorus', 'potassium', 'riboflavin', 'selinium', 'sodium', 'sulfur', 'thiamin',
     'vitamin_a', 'vitamin_b12', 'vitamin_b6', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_k', 'zinc'
 ];
 
@@ -286,6 +296,16 @@ request.get(recipeUrl + "/json?nutrientProfile=51e4e6ca7789bc0200000007", functi
         nutrientTargets = response.body.nutrientTargets,
         i, j, nutrient;
 
+    // Override macros based on user variables from top of this file
+    nutrientTargets.calories = calories;
+    nutrientTargets.carbs    = Math.round(macros.carbs * calories / 100 / 4);
+    nutrientTargets.protein  = Math.round(macros.protein * calories / 100 / 4);
+    nutrientTargets.fat      = Math.round(macros.fat * calories / 100 / 9);
+    nutrientTargets.calories_max = Number((nutrientTargets.calories * 1.04).toFixed(2));
+    nutrientTargets.carbs_max    = Number((nutrientTargets.carbs * 1.04).toFixed(2));
+    nutrientTargets.protein_max  = Number((nutrientTargets.protein * 1.04).toFixed(2));
+    nutrientTargets.fat_max      = Number((nutrientTargets.fat * 1.04).toFixed(2));
+
     // Here's where the magic happens...
     var ingredientQuantities = generateRecipe(ingredients, nutrientTargets);
 
@@ -309,12 +329,14 @@ request.get(recipeUrl + "/json?nutrientProfile=51e4e6ca7789bc0200000007", functi
     // Output the nutrients.
     var nutrientsTable = new Table({
         style: { compact: true },
-        head: ['Nutrient', 'Target', 'Max', 'Recipe', '% of Target']
+        head: ['Nutrient', 'Target', 'Max', 'Recipe', '%']
     });
 
-    // Loops over each nutrient in the target list
-    for (nutrient in nutrientTargets) {
-        if (nutrients.indexOf(nutrient) < 0) continue; // Skip over non-nutrient properties
+    var pct;
+
+    for (var n=0; n < nutrients.length; n++) {
+
+        var nutrient = nutrients[n];
 
         // Add up the amount of the current nutrient in each of the ingredients.
         var nutrientInIngredients = 0;
@@ -325,15 +347,15 @@ request.get(recipeUrl + "/json?nutrientProfile=51e4e6ca7789bc0200000007", functi
         }
 
         // Format percentages nicely. Cyan: too little. Green: just right. Red: too much
-        var pct = (nutrientInIngredients / nutrientTargets[nutrient] * 100);
+        pct = nutrientTargets[nutrient] ? (nutrientInIngredients / nutrientTargets[nutrient] * 100) : 100;
         if (pct < 99) {
-            pct = pct.toFixed(0).cyan.bold;
+            pct = (pct.toFixed(0) + " %").cyan.bold;
         }
         else if (nutrientTargets[nutrient + '_max'] > 0 && nutrientInIngredients > nutrientTargets[nutrient + '_max']) {
-            pct = pct.toFixed(0).red.bold.inverse;
+            pct = (pct.toFixed(0) + " %").red.bold.inverse;
         }
         else {
-            pct = pct.toFixed(0).green;
+            pct = (pct.toFixed(0) + " %").green;
         }
 
         nutrientsTable.push([
